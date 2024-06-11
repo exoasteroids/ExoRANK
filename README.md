@@ -38,7 +38,7 @@
 <pp><b>-----------------------------------------</b><pp>
 </div>
 
-1. Once the conda environment is activated, go to your directory containing the ExoRANK contents (e.g., "cd Documents/GitHub/ExoRANK").
+1. Once the conda environment is activated, go to your directory containing the ExoRANK contents and enter the directory named Output (e.g., "cd Documents/GitHub/ExoRANK").
 2. Run the command:
    ```bash
    pip install -r requirements.txt
