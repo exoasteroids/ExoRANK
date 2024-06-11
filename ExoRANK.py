@@ -1,3 +1,10 @@
+#-----------------------------------------------------------------------#
+# ExoRANK v?
+# By Hunter Brooks, at NAU, Flagstaff: June 10, 2024
+#
+# Purpose: Rank a Table Based Off Given Parameters
+#-----------------------------------------------------------------------#
+
 
 # Import all needed packages.
 # ------------------------------------------------------------- #
@@ -6,7 +13,7 @@ import PySimpleGUI as sg
 import pandas as pd
 from astropy.io import fits
 from astropy.io import ascii
-import tqdm
+from tqdm import tqdm
 import numpy as np
 import csv
 
@@ -35,35 +42,42 @@ def column_read(table, user_options, user_types):
 
 def parm_metrix(column_space, user_types): 
     total_parm_space = []
+    
+    print('')
+    print('#           Parameter Space is Being Read!             #')
+    
     for i in tqdm(range(len(column_space[0]))): 
         temp_parm_space = []
         for j in range(len(user_types)): 
             current_type = user_types[j]
             if current_type == 'pwd': 
                 temp_value = 1
-                current_type.append(temp_value)
+                temp_parm_space.append(temp_value)
             if current_type == 'mag': 
                 temp_value = 1
-                current_type.append(temp_value)
+                temp_parm_space.append(temp_value)
             if current_type == 'plx': 
                 temp_value = 1
-                current_type.append(temp_value)
+                temp_parm_space.append(temp_value)
             if current_type == 'distance': 
                 temp_value = 1
-                current_type.append(temp_value)
+                temp_parm_space.append(temp_value)
             if current_type == 'teff': 
                 temp_value = 1
-                current_type.append(temp_value)
+                temp_parm_space.append(temp_value)
             if current_type == 'pm': 
                 temp_value = 1
-                current_type.append(temp_value)
+                temp_parm_space.append(temp_value)
             if current_type == 'spt': 
                 temp_value = 1
-                current_type.append(temp_value)
-        total_parm_space.append(current_type)
+                temp_parm_space.append(temp_value)
+        total_parm_space.append(temp_parm_space)
+        
+    print('#           Parameter Space Has Been Read!             #')
+    print('')
     return total_parm_space
 
-def ranking_mult(parameter_matrix, user_scalings): 
+def ranking_mult(parameter_matrix, user_scalings):
     total_rank_list = []
     print('')
     print('#           Table Is Being Ranked!             #')
@@ -72,31 +86,30 @@ def ranking_mult(parameter_matrix, user_scalings):
         temp_parm_space = parameter_matrix[i]
         temp_rank = []
         for j in range(len(temp_parm_space)): 
-            temp_rank.append(temp_parm_space[j]*user_scalings[j])
+            temp_rank.append(float(temp_parm_space[j]) * float(user_scalings[j]))  # Convert to float
         total_rank_list.append(np.nansum(temp_rank))
         
     print('#           Table Has Been Ranked!             #')
     print('')
     return total_rank_list
 
-def rank_table(table, ranked_list): 
-    print('')
+def rank_table(table, ranked_list):
     print('#      Ranks Are Being Added to Table!         #')
     print('')
-    for i in range(len(table)):
-        table[i].append(ranked_list[i])
+
+    table['Rank'] = ranked_list
     return table
 
 def rank_table_save(ranked_table, output): 
     print('')
-    print('#           Table Is Being Loaded!             #')
+    print('#           Table Is Being Saved!             #')
     print('')
-    with open(f'Output/{output}.csv', 'w', newline='') as csvfile:
-        csv_writer = csv.writer(csvfile)
-        csv_writer.writerows(ranked_table)
+    
+    df = pd.DataFrame(ranked_table)
+    df.to_csv(f'Output/{output}.csv', index=False)
 
 # Sets General WRAP Theme
-sg.theme('LightBlue')
+sg.theme('DarkTeal1')
 
 #Makes the drop down window for types of file in the multi-object search
 filetype_list = ['CSV', 'FITS', 'ASCII', 'IPAC']
@@ -124,7 +137,11 @@ layout = [
         ]
 
 #Generates the window based off the layouts above
-window = sg.Window('ExoRANK', layout, size = (300, 360), grab_anywhere=False, finalize=True, enable_close_attempted_event = True)
+window = sg.Window('ExoRANK', layout, size = (300, 380), grab_anywhere=False, finalize=True, enable_close_attempted_event = True)
+
+user_options = []
+user_scalings = []
+user_types = []
 
 # RUNNING WRAP GUI
 # ------------------------------------------------------------- #
@@ -133,16 +150,20 @@ while True:
     #Reads all of the events and values, then reads which tab is currently in
     event, values = window.read()
     
-    num_options = int(values['nop'])
-    output = values['output2']
-    
     if event == "Change Settings":
+        try: 
+            num_options = int(values['nop'])
+        except: 
+            print('#------------------------------------------------#')
+            print('#   Please Enter a Correct Output!  #')
+            print('#------------------------------------------------#')
+            pass
         col_option = [sg.Text('Column Name: ', font = ('Times New Roman', 22), size=(16, 1), justification='center')]
         col_type = [sg.Text('Column Type: ', font = ('Times New Roman', 22), size=(16, 1), justification='center')]
         col_scaling = [sg.Text('Column Scaling: ', font = ('Times New Roman', 22), size=(16, 1), justification='center')]
         for i in range(num_options): 
             col_option.append(sg.InputText(size = (18), font = ('Times New Roman', 15), key = f'option_{i}'))
-            col_type.append(sg.Combo(option_type_list, size = (16), font = ('Times New Roman', 15), key = 'type'))
+            col_type.append(sg.Combo(option_type_list, size = (16), font = ('Times New Roman', 15), key = f'type_{i}'))
             col_scaling.append(sg.InputText(size = (18), font = ('Times New Roman', 15), key = f'scaling_{i}'))
         
         # Settings window layout
@@ -188,26 +209,48 @@ while True:
         window.un_hide()
     
     if event in (None, 'Run'):
+        try: 
+            output = values['output2']
+        except: 
+            print('#------------------------------------------------#')
+            print('#   Please Enter a Correct Output!  #')
+            print('#------------------------------------------------#')
+            pass
+        
+        if values['file'] == '': 
+            print('#------------------------------------------------#')
+            print('#             Please Enter a File!               #')
+            print('#------------------------------------------------#')
+            pass
+        
+        if values['type'] not in ['CSV', 'FITS', 'ASCII', 'IPAC']: 
+            print('#------------------------------------------------#')
+            print('#        Please Enter a Correct Filetype!        #')
+            print('#------------------------------------------------#')
+            pass
         
         if len(user_options) != 0 and len(user_types) != 0 and len(user_scalings) != 0: 
             print('#----------------------------------------------------#')
             print('#           ExoRANK Has Started Running!             #')
             print('# Please Wait While Calculations Are Being Performed #')
             print('#----------------------------------------------------#')
+            
             table = table_read()
             column_space = column_read(table, user_options, user_types)
             parameter_matrix = parm_metrix(column_space, user_types)
             ranked_list = ranking_mult(parameter_matrix, user_scalings)
             ranked_table = rank_table(table, ranked_list)
             rank_table_save(ranked_table, output)
+            
             print('#----------------------------------------------------#')
             print('#           ExoRANK Has Finished Running!            #')
             print('# Output Table Was Saved to "Output" File Directory  #')
             print('#----------------------------------------------------#')
         else: 
             print('#------------------------------------------------#')
-            print('#       Please Set Interall Settings             #')
+            print('#             Please Set Settings                #')
             print('#------------------------------------------------#')
+            pass
                
     #Provides the user with the authors information if the 'Help' button is pressed
     if event in (None, 'Help'):
