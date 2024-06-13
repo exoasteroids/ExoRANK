@@ -1,6 +1,6 @@
 #-----------------------------------------------------------------------#
-# ExoRANK v0.2.0
-# By Hunter Brooks, at NAU, Flagstaff: June 10, 2024
+# ExoRANK v1.0.0
+# By Hunter Brooks, at NAU, Flagstaff: June 12, 2024
 #
 # Purpose: Rank a Table Based Off Given Parameters
 #-----------------------------------------------------------------------#
@@ -90,27 +90,27 @@ def parm_metrix(column_space, user_types):
             # Check the type and calculate the corresponding parameter value
             if current_type == 'pwd':
                 # Convert to pwd (assumed to be milliparsecs)
-                temp_value = (column_space[j][i]) * 1000
+                temp_value = ((1/10) * np.exp((column_space[j][i]) * 10)) + 500
                 temp_parm_space.append(temp_value)
             if current_type == 'mag':
                 # Convert to magnitude
-                temp_value = 1000 / (column_space[j][i])
+                temp_value = 1000/(column_space[j][i])
                 temp_parm_space.append(temp_value)
             if current_type == 'plx':
                 # Convert to parallax (assumed to be in milliarcseconds)
-                temp_value = (column_space[j][i]) / 100
+                temp_value = -1*np.sqrt(1000/column_space[j][i]) + 100
                 temp_parm_space.append(temp_value)
             if current_type == 'distance':
                 # Convert to distance in parsecs
-                temp_value = (1000 / (column_space[j][i])) / 100
+                temp_value = -1*np.sqrt(column_space[j][i]) + 100
                 temp_parm_space.append(temp_value)
             if current_type == 'teff':
                 # Convert to effective temperature (assumed to be in units of 10,000 K)
-                temp_value = (column_space[j][i]) / 10000
+                temp_value = (column_space[j][i]) / 100
                 temp_parm_space.append(temp_value)
             if current_type == 'pm':
                 # Convert to proper motion (assumed to be in milliarcseconds/year)
-                temp_value = 100 / (column_space[j][i])
+                temp_value = (-50 * ((column_space[j][i])**(1/3))) + 500
                 temp_parm_space.append(temp_value)
         
         # Append the temporary parameter space list to the total parameter space list
@@ -122,7 +122,6 @@ def parm_metrix(column_space, user_types):
     
     # Return the total parameter space list
     return total_parm_space
-
 # ------------------------------------------------------------- #
 
 
@@ -159,16 +158,26 @@ def ranking_mult(parameter_matrix, user_scalings):
     # Return the total rank list
     return total_rank_list
 
-def rank_table(table, ranked_list):
+def rank_table(table, ranked_list, ra_list, dec_list, user_options, column_space):
     # Print a message indicating that ranks are being added to the table
     print('#      Ranks Are Being Added to Table!         #')
     print('')
     
-    # Add the ranked list as a new column 'Rank' to the table
-    table['Rank'] = ranked_list
+    numbers_series = pd.Series(ranked_list)
+    ranks = numbers_series.rank(method='min')
+
+    df = pd.DataFrame({
+    'RA': ra_list,
+    'DEC': dec_list,
+    '#RANK': ranked_list, 
+    '#TARGET_ID': ranks
+                    })
+
+    for i in range(len(user_options)): 
+        df[f'#{user_options[i]}'] = column_space[i]
     
     # Return the updated table
-    return table
+    return df
 # ------------------------------------------------------------- #
 
 
@@ -266,7 +275,6 @@ while True:
             col_scaling,
             [sg.Button("Save"), sg.Button("Cancel")],
         ]
-
         
         # Create the settings window
         settings_window = sg.Window("Settings", settings_layout, modal=True)
@@ -293,33 +301,37 @@ while True:
                 # Iterate over each option
                 for i in range(num_options):
                     # Check if the scaling value is between 0 and 1 and if the type is valid
-                    if 0 <= float(settings_values[f'scaling_{i}']) <= 1 and settings_values[f'type_{i}'] in ['pwd', 'mag', 'plx', 'distance', 'teff', 'pm']:
-                        # If valid, append user options, types, and scalings
-                        user_options.append(settings_values[f'option_{i}'])
-                        user_types.append(settings_values[f'type_{i}'])
-                        user_scalings.append(settings_values[f'scaling_{i}'])
-                    else:
-                        # If settings are incorrect, notify the user
+                    if settings_values[f'scaling_{i}']  == '' and  settings_values[f'type_{i}'] == '' and settings_values[f'option_{i}'] == '': 
                         print('#------------------------------------------------#')
                         print('#         Please Input Correct Settings!         #')
                         print('#------------------------------------------------#')
-                
+                    else: 
+                        if 0 <= float(settings_values[f'scaling_{i}']) <= 1 and settings_values[f'type_{i}'] in ['pwd', 'mag', 'plx', 'distance', 'teff', 'pm']:
+                            # If valid, append user options, types, and scalings
+                            user_options.append(settings_values[f'option_{i}'])
+                            user_types.append(settings_values[f'type_{i}'])
+                            user_scalings.append(settings_values[f'scaling_{i}'])
+                        else:
+                            # If settings are incorrect, notify the user
+                            print('#------------------------------------------------#')
+                            print('#         Please Input Correct Settings!         #')
+                            print('#------------------------------------------------#')
                 # Check if all lists have the correct length
                 if len(user_scalings) == num_options and len(user_options) == num_options and len(user_types) == num_options:
                     # Break the loop if settings are valid
                     break
                 
-                settings_window.close()
-                
-                # Show the main window again
-                window.un_hide()
+        settings_window.close()
+        
+        # Show the main window again
+        window.un_hide()
     
     if event in (None, 'Run'):
         try: 
             output = values['output2']
         except: 
             print('#------------------------------------------------#')
-            print('#   Please Enter a Correct Output!  #')
+            print('#   Please Enter a Correct Output!               #')
             print('#------------------------------------------------#')
             pass
         
@@ -342,7 +354,16 @@ while True:
             print('#----------------------------------------------------#')
             
             table = table_read()
-            if (table == 0).all().all(): 
+            try: 
+                ra_list = table['RA'].tolist()
+                dec_list = table['DEC'].tolist()
+            except: 
+                ra_list, dec_list = 0, 0
+                print('#------------------------------------------------#')
+                print('#   Please Enter a Correct RA/DEC Column Names!  #')
+                print('#------------------------------------------------#')
+                pass
+            if (table == 0).all().all() and ra_list == 0 and dec_list == 0: 
                 print('#------------------------------------------------#')
                 print('#         Please Enter a Correct Table!          #')
                 print('#------------------------------------------------#')
@@ -357,7 +378,7 @@ while True:
                 else: 
                     parameter_matrix = parm_metrix(column_space, user_types)
                     ranked_list = ranking_mult(parameter_matrix, user_scalings)
-                    ranked_table = rank_table(table, ranked_list)
+                    ranked_table = rank_table(table, ranked_list, ra_list, dec_list, user_options, column_space)
                     rank_table_save(ranked_table, output)
                 
             
