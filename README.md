@@ -63,7 +63,7 @@ To open the application, type the following command into your terminal:
 </div>
 
 <div align="center">
-  <p><b>How to Use WRAP</b></p>
+  <p><b>How to Use ExoRANK</b></p>
 </div>
 <div align="center">
 <pp><b>-----------------------------------------</b><pp>
@@ -101,6 +101,7 @@ To open the application, type the following command into your terminal:
 
 - **Note 1**: Only tested on MacOS >11; problems may occur for older versions of MacOS and Windows ***(NOT SUPPORTED ON LINUX)***.
 - **Note 2**: The window close button has been disabled; to close ExoRANK, please click the red "Close" button at the bottom.
+- **Note 3**: Even though Right Ascension and Declination are not used in the ranking algorithm, ExoRANK requires two columns labeled: "RA" and "DEC" for use. 
 
 
 <div align="center">
@@ -109,12 +110,3 @@ To open the application, type the following command into your terminal:
 
 - **Mr. Hunter Brooks**
   - Email: hcb98@nau.edu
-
-<div align="center">
-  <h2>📖 Acknowledgments 📖</h2>
-</div>
-
-1. If you intend to publish any of the data gathered by WRAP, please ensure that you correctly acknowledge the sources of the data. 
-
-2. In addition to using the correct acknowledgments for each catalog, please cite [Brook et al. (2023)](https://ui.adsabs.harvard.edu/abs/2023RNAAS...7..272B/abstract) when using WRAP for any publication.
-

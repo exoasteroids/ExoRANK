@@ -90,11 +90,11 @@ def parm_metrix(column_space, user_types):
             # Check the type and calculate the corresponding parameter value
             if current_type == 'pwd':
                 # Convert to pwd (assumed to be milliparsecs)
-                temp_value = ((1/10) * np.exp((column_space[j][i]) * 10)) + 500
+                temp_value = (np.exp((column_space[j][i])*7.5)) - 500
                 temp_parm_space.append(temp_value)
             if current_type == 'mag':
                 # Convert to magnitude
-                temp_value = 1000/(column_space[j][i])
+                temp_value = 10000/(column_space[j][i])
                 temp_parm_space.append(temp_value)
             if current_type == 'plx':
                 # Convert to parallax (assumed to be in milliarcseconds)
@@ -110,7 +110,7 @@ def parm_metrix(column_space, user_types):
                 temp_parm_space.append(temp_value)
             if current_type == 'pm':
                 # Convert to proper motion (assumed to be in milliarcseconds/year)
-                temp_value = (-50 * ((column_space[j][i])**(1/3))) + 500
+                temp_value = (-50 * ((column_space[j][i])**(1/2))) + 500
                 temp_parm_space.append(temp_value)
         
         # Append the temporary parameter space list to the total parameter space list
@@ -162,16 +162,14 @@ def rank_table(table, ranked_list, ra_list, dec_list, user_options, column_space
     # Print a message indicating that ranks are being added to the table
     print('#      Ranks Are Being Added to Table!         #')
     print('')
-    
-    numbers_series = pd.Series(ranked_list)
-    ranks = numbers_series.rank(method='min')
 
     df = pd.DataFrame({
     'RA': ra_list,
     'DEC': dec_list,
     '#RANK': ranked_list, 
-    '#TARGET_ID': ranks
                     })
+    
+    df['#TARGET_ID'] = df['#RANK'].rank(ascending=False)
 
     for i in range(len(user_options)): 
         df[f'#{user_options[i]}'] = column_space[i]
