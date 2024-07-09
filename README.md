@@ -71,14 +71,19 @@ To open the application, type the following command into your terminal:
 
 **ExoRANK Main Window**
 
-1. Open ExoRANK. You will need to provide five inputs before clicking "Run":
-2. Click "File Browser" to select your table. Supported table types are CSV, FITS, ASCII, and IPAC.
-3. Choose the file type of your selected table from the dropdown menu below.
-4. Enter the number of parameters by typing a positive integer in the "NOP" text box. This represents the columns you are using in the ranking algorithm.
-5. Type the desired output file name as a string in the "Output File Name" text box.
-6. Click the "Change Settings" button at the bottom. A new window will appear. Refer to the instructions below for guidance on using this popup window.
-7. Once all parameters are set, click "Run" to execute the algorithm.
-8. The output table will be saved as a CSV file in the "Output" file directory.
+1. Open ExoRANK. You will need to provide ten inputs before clicking "Run":
+2. Click "Ranking File Browser" to select your table that is going to be ranked. Supported table types are CSV, FITS, ASCII, and IPAC.
+3. Click "True-Positive File Browser" to select your table that is going to be added randomly in as your true-positives. Supported table types are CSV, FITS, ASCII, and IPAC.
+4. Click "True-Negative File Browser" to select your table that is going to be added randomly in as your true-negatives. Supported table types are CSV, FITS, ASCII, and IPAC.
+5. Choose the file type of your selected tables from the dropdown menu below. All tables must be the same file type
+6. Enter the number of parameters by typing a positive integer in the "NOP" text box. This represents the columns you are using in the ranking algorithm.
+7. Input a positive integer into the "Chunk Size" text box to select the size of each output csv, ie how many rows.
+8. Input a percentage, between 0 and 1, into the "Positive %" text box to select the percentage of the chunk size with be true-positives. 
+9. Input a percentage, between 0 and 1, into the "Negative %" text box to select the percentage of the chunk size with be true-negatives. 
+10. Type the desired output file name as a string in the "Output File Name" text box.
+11. Click the "Change Settings" button at the bottom. A new window will appear. Refer to the instructions below for guidance on using this popup window.
+12. Once all parameters are set, click "Run" to execute the algorithm.
+13. The output tables will be saved as a CSV file in the "Output" file directory.
 
 **ExoRANK "Change Settings" Window**
 
@@ -102,6 +107,7 @@ To open the application, type the following command into your terminal:
 - **Note 1**: Only tested on MacOS >11; problems may occur for older versions of MacOS and Windows ***(NOT SUPPORTED ON LINUX)***.
 - **Note 2**: The window close button has been disabled; to close ExoRANK, please click the red "Close" button at the bottom.
 - **Note 3**: Even though Right Ascension and Declination are not used in the ranking algorithm, ExoRANK requires two columns labeled: "RA" and "DEC" for use. 
+-  **Note 4**: If the number of true-positives and true-negatives goes over the size of the sample you provide then it will simple just add how many rows are in the csv, ie resample has been turned off. 
 
 
 <div align="center">

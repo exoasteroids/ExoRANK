@@ -25,16 +25,34 @@ def table_read():
         if values['type'] == 'CSV':
             # If the file is a CSV, read it using pandas
             table = pd.read_csv(values['file'])
+            
+            additional_table = pd.read_csv(values['tp_file'])
+            
+            bad_table = pd.read_csv(values['tn_file'])
         if values['type'] == 'FITS':
             # If the file is a FITS, read it using astropy
             fits_table = fits.open(values['file'])
             table = fits_table[1].data
+            
+            additional_fits_table = fits.open(values['tp_file'])
+            additional_table = fits_table[1].data
+            
+            bad_fits_table = fits.open(values['tn_file'])
+            bad_table = fits_table[1].data
         if values['type'] == 'ASCII':
             # If the file is an ASCII file, read it using astropy's ascii module
             table = ascii.read(values['file'])
+            
+            additional_table = ascii.read(values['tp_file'])
+            
+            bad_table = ascii.read(values['tn_file'])
         if values['type'] == 'IPAC':
             # If the file is an IPAC table, read it using astropy's ascii module with IPAC format
             table = ascii.read(values['file'], format='ipac')
+            
+            additional_table = ascii.read(values['tp_file'], format='ipac')
+            
+            bad_table = ascii.read(values['tn_file'], format='ipac')
         
         # Print confirmation message that the table has been loaded
         print('')
@@ -42,11 +60,11 @@ def table_read():
         print('')
         
         # Return the loaded table
-        return table
+        return additional_table, bad_table, table
     
     except:
         # In case of an error, return 0
-        return 0
+        return 0, 0
 
 def column_read(table, user_options, user_types):
     try:
@@ -169,7 +187,7 @@ def rank_table(table, ranked_list, ra_list, dec_list, user_options, column_space
     '#RANK': ranked_list, 
                     })
     
-    df['#TARGET_ID'] = df['#RANK'].rank(ascending=False)
+    df['#Target ID'] = df['#RANK'].rank(ascending=False)
 
     for i in range(len(user_options)): 
         df[f'#{user_options[i]}'] = column_space[i]
@@ -182,24 +200,60 @@ def rank_table(table, ranked_list, ra_list, dec_list, user_options, column_space
 
 # Save Final Table Function
 # ------------------------------------------------------------- #
-def rank_table_save(ranked_table, output):
+def rank_table_save(ranked_table, additional_table, output, chunk_size, true_positive_perc, true_negative_perc, bad_table):
     # Print a message indicating that the table is being saved
     print('')
     print('#           Table Is Being Saved!             #')
     print('')
     
-    # Convert the ranked table to a pandas DataFrame
+    # Convert the ranked table and additional table to pandas DataFrames
     df = pd.DataFrame(ranked_table)
+    df = df.sort_values(by='#Target ID')
+    df['#BITMASK'] = 1 
     
-    # Save the DataFrame to a CSV file in the 'Output' directory with the specified output filename
-    df.to_csv(f'Output/{output}.csv', index=False)
+    additional_df = pd.DataFrame(additional_table)
+    additional_df = additional_df.reindex(columns=df.columns, fill_value=np.nan)
+    
+    bad_df = pd.DataFrame(bad_table)
+    bad_df = bad_df.reindex(columns=df.columns, fill_value=np.nan)
+    
+    # Determine the number of additional rows to add
+    num_random_rows = int(true_positive_perc * chunk_size)
+    num_random_rows = min(num_random_rows, len(additional_df))
+    
+    bad_num_random_rows = int(true_negative_perc * chunk_size)
+    bad_num_random_rows = min(bad_num_random_rows, len(bad_df))
+    
+    chunk_size = chunk_size - bad_num_random_rows - num_random_rows
+    
+    # Loop over the DataFrame in chunks of the specified size
+    for i in range(0, len(df), chunk_size):
+        # Randomly select rows from the additional table
+        additional_rows = additional_df.sample(n=num_random_rows, random_state=1)
+        bad_rows = bad_df.sample(n=bad_num_random_rows, random_state=1)
+        
+        # Create a chunk of the DataFrame
+        chunk = df[i:i + chunk_size]
+        
+        # Append the randomly selected rows to the chunk
+        chunk = pd.concat([chunk, additional_rows, bad_rows], ignore_index=True)
+        chunk = chunk.reset_index(drop=True).sample(frac=1)
+        
+        target_ids = list(range(i, (i + len(chunk))))
+        chunk['#Target ID'] = target_ids
+        
+        # Generate a filename for each chunk
+        chunk_output = f'{output}_subjectset_{i}.csv'
+        
+        # Save the chunk to a CSV file in the 'Output' directory
+        chunk.to_csv(f'Output/{chunk_output}', index=False)
 # ------------------------------------------------------------- #
 
 
 
 # Sets General ExoRANK Settings
 # ------------------------------------------------------------- #
-sg.theme('DarkTeal1')
+sg.theme('LightBlue3')
 
 #Makes the drop down window for types of file in the multi-object search
 filetype_list = ['CSV', 'FITS', 'ASCII', 'IPAC']
@@ -217,23 +271,31 @@ user_types = []
 layout = [
     [sg.Text('ExoRANK', justification='center', size=(12, 1), font = ('Chalkduster', 52))],
 
-    [sg.Text('File Directory', font = ('Times New Roman', 22), size=(50, 1), justification='center')],
-    [sg.Text('(CSV, FITS, ASCII, IPAC)', font = ('Times New Roman', 20), size=(50, 1), justification='center')],
-
-    [sg.FileBrowse('File Browser', size = (80, 1), key = 'file', file_types = [('CSV Files', '*.csv'), ('FITS Files', '*.fits'), ('ASCII Files', '*.txt'), ('IPAC Files', '*.txt')])],
-    [sg.Text('Filetype', font = ('Times New Roman', 22), size=(12, 1), justification='center'), sg.Text('NOP', size=(25, 1), justification='center', font = ('Times New Roman', 22))],
-    [sg.Combo(filetype_list, size = (14), font = ('Times New Roman', 15), key = 'type'), sg.InputText(size = (18), font = ('Times New Roman', 15), key = 'nop')],            
-                    
-    [sg.Text('Output File Name', size=(25, 1), justification='center', font = ('Times New Roman', 22))], 
-    [sg.InputText(key = 'output2', font = ('Times New Roman', 15), size = (40, 2), justification='center')],        
+    [sg.Text('Ranking File Directory', font = ('Times New Roman', 22), size=(50, 1), justification='center')],
+    [sg.FileBrowse('Ranking File Browser', size = (80, 1), key = 'file', file_types = [('CSV Files', '*.csv'), ('FITS Files', '*.fits'), ('ASCII Files', '*.txt'), ('IPAC Files', '*.txt')])],
     
-    [sg.Button('Change Settings', font = ('Times New Roman', 15), size = (40, 1))],        
+    [sg.Text('True-Positive File Directory', font = ('Times New Roman', 22), size=(50, 1), justification='center')],
+    [sg.FileBrowse('True-Positive File Browser', size = (80, 1), key = 'tp_file', file_types = [('CSV Files', '*.csv'), ('FITS Files', '*.fits'), ('ASCII Files', '*.txt'), ('IPAC Files', '*.txt')])],
+    
+    [sg.Text('True-Negative File Directory', font = ('Times New Roman', 22), size=(50, 1), justification='center')],
+    [sg.FileBrowse('True-Negative File Browser', size = (80, 1), key = 'tn_file', file_types = [('CSV Files', '*.csv'), ('FITS Files', '*.fits'), ('ASCII Files', '*.txt'), ('IPAC Files', '*.txt')])],
+    
+    [sg.Text('Filetype', font = ('Times New Roman', 22), size=(22, 1), justification='center'),   sg.Text('NOP', size=(12, 1), justification='center', font = ('Times New Roman', 22))],
+    [sg.Combo(filetype_list, size = (25), font = ('Times New Roman', 15), key = 'type'),          sg.InputText(size = (25), font = ('Times New Roman', 15), key = 'nop')],            
+    
+    [sg.Text('Chunk Size', size=(12, 1), justification='center', font = ('Times New Roman', 22)),   sg.Text('Positive %', size=(12, 1), justification='center', font = ('Times New Roman', 22)),   sg.Text('Negative %', size=(12, 1), justification='center', font = ('Times New Roman', 22))],
+    [sg.InputText(size = (16), font = ('Times New Roman', 15), key = 'chunk')                   ,   sg.InputText(size = (16), font = ('Times New Roman', 15), key = 'additional_perc'),            sg.InputText(size = (19), font = ('Times New Roman', 15), key = 'bad_perc')],
                     
-    [sg.Button('Run', size = (12), button_color = '#95D49B'), sg.Button('Help', size = (12), button_color = '#F7CC7C'), sg.Button('Close', size = (12), button_color = '#E48671')]
+    [sg.Text('Output File Name', size=(40, 1), justification='center', font = ('Times New Roman', 22))], 
+    [sg.InputText(key = 'output2', font = ('Times New Roman', 15), size = (60, 2), justification='center')],        
+    
+    [sg.Button('Change Settings', font = ('Times New Roman', 15), size = (60, 1))],        
+                    
+    [sg.Button('Run', size = (25), button_color = '#95D49B'), sg.Button('Help', size = (15), button_color = '#F7CC7C'), sg.Button('Close', size = (25), button_color = '#E48671')]
         ]
 
 #Generates the window based off the layouts above
-window = sg.Window('ExoRANK', layout, size = (300, 380), grab_anywhere=False, finalize=True, enable_close_attempted_event = True)
+window = sg.Window('ExoRANK', layout, size = (450, 540), grab_anywhere=False, finalize=True, enable_close_attempted_event = True)
 # ------------------------------------------------------------- #
 
 
@@ -351,7 +413,11 @@ while True:
             print('# Please Wait While Calculations Are Being Performed #')
             print('#----------------------------------------------------#')
             
-            table = table_read()
+            chunk_size = int(values['chunk'])
+            true_positive_perc = float(values['additional_perc'])
+            true_negative_perc = float(values['bad_perc'])
+            
+            additional_table, bad_table, table = table_read()
             try: 
                 ra_list = table['RA'].tolist()
                 dec_list = table['DEC'].tolist()
@@ -377,9 +443,7 @@ while True:
                     parameter_matrix = parm_metrix(column_space, user_types)
                     ranked_list = ranking_mult(parameter_matrix, user_scalings)
                     ranked_table = rank_table(table, ranked_list, ra_list, dec_list, user_options, column_space)
-                    rank_table_save(ranked_table, output)
-                
-            
+                    rank_table_save(ranked_table, additional_table, output, chunk_size, true_positive_perc, true_negative_perc, bad_table)
             print('#----------------------------------------------------#')
             print('#           ExoRANK Has Finished Running!            #')
             print('# Output Table Was Saved to "Output" File Directory  #')
